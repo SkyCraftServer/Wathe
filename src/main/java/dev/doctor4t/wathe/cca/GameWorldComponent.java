@@ -33,7 +33,7 @@ public class GameWorldComponent implements AutoSyncedComponent, ServerTickingCom
     private final World world;
 
     private boolean lockedToSupporters = false;
-    private boolean enableWeights = false;
+    private boolean enableWeights = true;
 
     public void setWeightsEnabled(boolean enabled) {
         this.enableWeights = enabled;
@@ -261,7 +261,8 @@ public class GameWorldComponent implements AutoSyncedComponent, ServerTickingCom
     @Override
     public void readFromNbt(@NotNull NbtCompound nbtCompound, RegistryWrapper.WrapperLookup wrapperLookup) {
         this.lockedToSupporters = nbtCompound.getBoolean("LockedToSupporters");
-        this.enableWeights = nbtCompound.getBoolean("EnableWeights");
+        // Force enable weights for old worlds so the feature is always on
+        this.enableWeights = true;
 
         this.gameMode = WatheGameModes.GAME_MODES.get(Identifier.of(nbtCompound.getString("GameMode")));
         this.mapEffect = WatheMapEffects.MAP_EFFECTS.get(Identifier.of(nbtCompound.getString("MapEffect")));
@@ -297,7 +298,8 @@ public class GameWorldComponent implements AutoSyncedComponent, ServerTickingCom
     @Override
     public void writeToNbt(@NotNull NbtCompound nbtCompound, RegistryWrapper.WrapperLookup wrapperLookup) {
         nbtCompound.putBoolean("LockedToSupporters", lockedToSupporters);
-        nbtCompound.putBoolean("EnableWeights", enableWeights);
+        // Always persist weights as enabled
+        nbtCompound.putBoolean("EnableWeights", true);
 
         nbtCompound.putString("GameMode", this.gameMode != null ? this.gameMode.identifier.toString() : "");
         nbtCompound.putString("MapEffect", this.mapEffect != null ? this.mapEffect.identifier.toString() : "");

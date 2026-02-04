@@ -2,7 +2,6 @@ package dev.doctor4t.wathe;
 
 import com.google.common.reflect.Reflection;
 import dev.doctor4t.wathe.block.DoorPartBlock;
-import dev.doctor4t.wathe.cca.GameWorldComponent;
 import dev.doctor4t.wathe.command.*;
 import dev.doctor4t.wathe.command.argument.GameModeArgumentType;
 import dev.doctor4t.wathe.command.argument.MapEffectArgumentType;
@@ -10,28 +9,20 @@ import dev.doctor4t.wathe.command.argument.TimeOfDayArgumentType;
 import dev.doctor4t.wathe.game.GameConstants;
 import dev.doctor4t.wathe.index.*;
 import dev.doctor4t.wathe.util.*;
-import dev.upcraft.datasync.api.DataSyncAPI;
-import dev.upcraft.datasync.api.util.Entitlements;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.ArgumentTypeRegistry;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
-import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
-import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.command.argument.serialize.ConstantArgumentSerializer;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.server.command.ServerCommandSource;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.Optional;
 
 public class Wathe implements ModInitializer {
     public static final String MOD_ID = "wathe";
@@ -74,16 +65,6 @@ public class Wathe implements ModInitializer {
             SetMoneyCommand.register(dispatcher);
             LockToSupportersCommand.register(dispatcher);
         }));
-
-        // server lock to supporters
-        ServerPlayerEvents.JOIN.register(player -> {
-            DataSyncAPI.refreshAllPlayerData(player.getUuid()).thenRunAsync(() -> {
-                // check if player is supporter now, if not kick
-                if (GameWorldComponent.KEY.get(player.getWorld()).isLockedToSupporters() && !Wathe.isSupporter(player)) {
-                    player.networkHandler.disconnect(Text.literal("Server is reserved to doctor4t supporters."));
-                }
-            }, player.getWorld().getServer());
-        });
 
         PayloadTypeRegistry.playS2C().register(ShootMuzzleS2CPayload.ID, ShootMuzzleS2CPayload.CODEC);
         PayloadTypeRegistry.playS2C().register(PoisonUtils.PoisonOverlayPayload.ID, PoisonUtils.PoisonOverlayPayload.CODEC);
@@ -129,23 +110,12 @@ public class Wathe implements ModInitializer {
         return true;
     }
 
-    public static final Identifier COMMAND_ACCESS = id("commandaccess");
-
     public static int executeSupporterCommand(ServerCommandSource source, Runnable runnable) {
-        ServerPlayerEntity player = source.getPlayer();
-        if (player == null || !player.getClass().equals(ServerPlayerEntity.class)) return 0;
-
-        if (isSupporter(player) || FabricLoader.getInstance().isDevelopmentEnvironment()) {
-            runnable.run();
-            return 1;
-        } else {
-            player.sendMessage(Text.translatable("commands.supporter_only"));
-            return 0;
-        }
+        runnable.run();
+        return 1;
     }
 
     public static @NotNull Boolean isSupporter(PlayerEntity player) {
-        Optional<Entitlements> entitlements = Entitlements.token().get(player.getUuid());
-        return entitlements.map(value -> value.keys().stream().anyMatch(identifier -> identifier.equals(COMMAND_ACCESS))).orElse(false);
+        return true;
     }
 }

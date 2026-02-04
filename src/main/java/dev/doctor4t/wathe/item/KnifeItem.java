@@ -51,11 +51,8 @@ public class KnifeItem extends Item implements ItemWithSkin {
     @Override
     public boolean onClicked(ItemStack stack, ItemStack otherStack, Slot slot, ClickType clickType, PlayerEntity player, StackReference cursorStackReference) {
         if (clickType == ClickType.RIGHT && otherStack.isEmpty())  {
-            if (Wathe.isSupporter(player)) {
-                Skin currentSkin = Skin.fromString(WatheCosmetics.getSkin(stack));
-                WatheCosmetics.setSkin(player, stack, Skin.getNext(currentSkin).getName());
-            }
-
+            Skin currentSkin = Skin.fromString(WatheCosmetics.getSkin(stack));
+            WatheCosmetics.setSkin(player, stack, Skin.getNext(currentSkin).getName());
             return true;
         } else return false;
     }
