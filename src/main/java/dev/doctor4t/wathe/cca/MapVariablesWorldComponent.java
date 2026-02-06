@@ -90,29 +90,29 @@ public class MapVariablesWorldComponent implements AutoSyncedComponent {
         List<PosWithOrientation> positions = new ArrayList<>();
         
         // Default game start spawn positions (user-provided list)
-        positions.add(new PosWithOrientation(-35, 122, -535, 90, 0));
-        positions.add(new PosWithOrientation(-12, 123, -533, 90, 0));
-        positions.add(new PosWithOrientation(24, 122, -536, 90, 0));
-        positions.add(new PosWithOrientation(44, 122, -534, 90, 0));
-        positions.add(new PosWithOrientation(33, 123, -535, 90, 0));
-        positions.add(new PosWithOrientation(50, 122, -536, 90, 0));
-        positions.add(new PosWithOrientation(56, 122, -537, 90, 0));
-        positions.add(new PosWithOrientation(64, 123, -536, 90, 0));
-        positions.add(new PosWithOrientation(69, 123, -537, 90, 0));
-        positions.add(new PosWithOrientation(78, 122, -537, 90, 0));
-        positions.add(new PosWithOrientation(84, 123, -536, 90, 0));
-        positions.add(new PosWithOrientation(86, 123, -536, 90, 0));
-        positions.add(new PosWithOrientation(94, 122, -534, 90, 0));
-        positions.add(new PosWithOrientation(97, 123, -533, 90, 0));
-        positions.add(new PosWithOrientation(108, 122, -534, 90, 0));
-        positions.add(new PosWithOrientation(112, 123, -534, 90, 0));
-        positions.add(new PosWithOrientation(115, 122, -537, 90, 0));
-        positions.add(new PosWithOrientation(118, 123, -535, 90, 0));
-        positions.add(new PosWithOrientation(131, 123, -533, 90, 0));
-        positions.add(new PosWithOrientation(138, 123, -537, 90, 0));
-        positions.add(new PosWithOrientation(143, 123, -537, 90, 0));
-        positions.add(new PosWithOrientation(153, 122, -534, 90, 0));
-        positions.add(new PosWithOrientation(167, 125, -536, 90, 0));
+        positions.add(new PosWithOrientation(-35.5, 122, -535.5, 90, 0));
+        positions.add(new PosWithOrientation(-12.5, 123, -533.5, 90, 0));
+        positions.add(new PosWithOrientation(24.5, 122, -536.5, 90, 0));
+        positions.add(new PosWithOrientation(44.5, 122, -534.5, 90, 0));
+        positions.add(new PosWithOrientation(33.5, 123, -535.5, 90, 0));
+        positions.add(new PosWithOrientation(50.5, 122, -536.5, 90, 0));
+        positions.add(new PosWithOrientation(56.5, 122, -537.5, 90, 0));
+        positions.add(new PosWithOrientation(64.5, 123, -536.5, 90, 0));
+        positions.add(new PosWithOrientation(69.5, 123, -537.5, 90, 0));
+        positions.add(new PosWithOrientation(78.5, 122, -537.5, 90, 0));
+        positions.add(new PosWithOrientation(84.5, 123, -536.5, 90, 0));
+        positions.add(new PosWithOrientation(86.5, 123, -536.5, 90, 0));
+        positions.add(new PosWithOrientation(94.5, 122, -534.5, 90, 0));
+        positions.add(new PosWithOrientation(97.5, 123, -533.5, 90, 0));
+        positions.add(new PosWithOrientation(108.5, 122, -534.5, 90, 0));
+        positions.add(new PosWithOrientation(112.5, 123, -534.5, 90, 0));
+        positions.add(new PosWithOrientation(115.5, 122, -537.5, 90, 0));
+        positions.add(new PosWithOrientation(118.5, 123, -535.5, 90, 0));
+        positions.add(new PosWithOrientation(131.5, 123, -533.5, 90, 0));
+        positions.add(new PosWithOrientation(138.5, 123, -537.5, 90, 0));
+        positions.add(new PosWithOrientation(143.5, 123, -537.5, 90, 0));
+        positions.add(new PosWithOrientation(153.5, 122, -534.5, 90, 0));
+        positions.add(new PosWithOrientation(167.5, 125, -536.5, 90, 0));
         
         return positions;
     }
