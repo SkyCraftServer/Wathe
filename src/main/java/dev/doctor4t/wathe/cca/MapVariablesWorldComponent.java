@@ -12,6 +12,9 @@ import org.ladysnake.cca.api.v3.component.ComponentKey;
 import org.ladysnake.cca.api.v3.component.ComponentRegistry;
 import org.ladysnake.cca.api.v3.component.sync.AutoSyncedComponent;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class MapVariablesWorldComponent implements AutoSyncedComponent {
     public static final ComponentKey<MapVariablesWorldComponent> KEY = ComponentRegistry.getOrCreate(Wathe.id("mapvariables"), MapVariablesWorldComponent.class);
     private final World world;
@@ -31,6 +34,9 @@ public class MapVariablesWorldComponent implements AutoSyncedComponent {
     Box readyArea = new Box(-1017, -1, -363.75f, -813, 3, -357.25f);
     Vec3i playAreaOffset = new Vec3i(963, 121, -175);
     Box playArea = new Box(-140, 118, -535.5f - 15, 230, 200, -535.5f + 15);
+    
+    // Game start spawn positions - players will be randomly assigned to these positions
+    List<PosWithOrientation> gameStartSpawnPositions = createDefaultSpawnPositions();
 
     Box resetTemplateArea = new Box(-57, 64, -531, 177, 74, -541);
     Vec3i resetPasteOffset = new Vec3i(0, 55, 0);
@@ -69,6 +75,46 @@ public class MapVariablesWorldComponent implements AutoSyncedComponent {
     public void setPlayAreaOffset(Vec3i playAreaOffset) {
         this.playAreaOffset = playAreaOffset;
         this.sync();
+    }
+    
+    public List<PosWithOrientation> getGameStartSpawnPositions() {
+        return gameStartSpawnPositions;
+    }
+    
+    public void setGameStartSpawnPositions(List<PosWithOrientation> positions) {
+        this.gameStartSpawnPositions = new ArrayList<>(positions);
+        this.sync();
+    }
+    
+    private static List<PosWithOrientation> createDefaultSpawnPositions() {
+        List<PosWithOrientation> positions = new ArrayList<>();
+        
+        // Default game start spawn positions (user-provided list)
+        positions.add(new PosWithOrientation(-35, 122, -535, 90, 0));
+        positions.add(new PosWithOrientation(-12, 123, -533, 90, 0));
+        positions.add(new PosWithOrientation(24, 122, -536, 90, 0));
+        positions.add(new PosWithOrientation(44, 122, -534, 90, 0));
+        positions.add(new PosWithOrientation(33, 123, -535, 90, 0));
+        positions.add(new PosWithOrientation(50, 122, -536, 90, 0));
+        positions.add(new PosWithOrientation(56, 122, -537, 90, 0));
+        positions.add(new PosWithOrientation(64, 123, -536, 90, 0));
+        positions.add(new PosWithOrientation(69, 123, -537, 90, 0));
+        positions.add(new PosWithOrientation(78, 122, -537, 90, 0));
+        positions.add(new PosWithOrientation(84, 123, -536, 90, 0));
+        positions.add(new PosWithOrientation(86, 123, -536, 90, 0));
+        positions.add(new PosWithOrientation(94, 122, -534, 90, 0));
+        positions.add(new PosWithOrientation(97, 123, -533, 90, 0));
+        positions.add(new PosWithOrientation(108, 122, -534, 90, 0));
+        positions.add(new PosWithOrientation(112, 123, -534, 90, 0));
+        positions.add(new PosWithOrientation(115, 122, -537, 90, 0));
+        positions.add(new PosWithOrientation(118, 123, -535, 90, 0));
+        positions.add(new PosWithOrientation(131, 123, -533, 90, 0));
+        positions.add(new PosWithOrientation(138, 123, -537, 90, 0));
+        positions.add(new PosWithOrientation(143, 123, -537, 90, 0));
+        positions.add(new PosWithOrientation(153, 122, -534, 90, 0));
+        positions.add(new PosWithOrientation(167, 125, -536, 90, 0));
+        
+        return positions;
     }
 
     public Box getPlayArea() {

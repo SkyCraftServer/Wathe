@@ -18,6 +18,8 @@ import dev.doctor4t.wathe.index.WatheItems;
 import dev.doctor4t.wathe.index.WatheSounds;
 import dev.doctor4t.wathe.util.AnnounceEndingPayload;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import java.util.ArrayList;
+import java.util.Collections;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
@@ -50,6 +52,12 @@ import org.jetbrains.annotations.Nullable;
 import java.util.*;
 
 public class GameFunctions {
+
+    private static final int TELEPORT_DEATH_LOG_WINDOW_TICKS = 100;
+    private static final int[] SAFE_TELEPORT_Y_OFFSETS = new int[]{0, 1, 2, -1};
+    private static final Map<UUID, TeleportRecord> LAST_GAME_TELEPORTS = new HashMap<>();
+
+    private record TeleportRecord(Vec3d pos, long tick) {}
 
     public static void limitPlayerToBox(ServerPlayerEntity player, Box box) {
         Vec3d playerPos = player.getPos();
@@ -139,11 +147,34 @@ public class GameFunctions {
             player.dismountVehicle();
         }
 
-        // teleport players to play area
-        for (ServerPlayerEntity player : players) {
-            player.changeGameMode(net.minecraft.world.GameMode.ADVENTURE);
-            Vec3d pos = player.getPos().add(Vec3d.of(areas.getPlayAreaOffset()));
-            player.requestTeleport(pos.getX(), pos.getY() + 1, pos.getZ());
+        // teleport players to play area - randomly assign spawn positions
+        List<MapVariablesWorldComponent.PosWithOrientation> spawnPositions = new ArrayList<>(areas.getGameStartSpawnPositions());
+
+        // If spawn positions list is empty or insufficient, fall back to offset method
+        if (spawnPositions.isEmpty()) {
+            for (ServerPlayerEntity player : players) {
+                player.changeGameMode(net.minecraft.world.GameMode.ADVENTURE);
+                Vec3d pos = player.getPos().add(Vec3d.of(areas.getPlayAreaOffset())).add(0, 1, 0);
+                Vec3d safePos = findSafeTeleportPosition(serverWorld, player, pos);
+                player.requestTeleport(safePos.getX(), safePos.getY(), safePos.getZ());
+                recordTeleport(player, safePos, serverWorld.getTime());
+            }
+        } else {
+            // Shuffle spawn positions for random assignment
+            Collections.shuffle(spawnPositions);
+
+            for (int i = 0; i < players.size(); i++) {
+                ServerPlayerEntity player = players.get(i);
+                player.changeGameMode(net.minecraft.world.GameMode.ADVENTURE);
+
+                // Use modulo to reuse positions if there are more players than spawn points
+                MapVariablesWorldComponent.PosWithOrientation spawnPos = spawnPositions.get(i % spawnPositions.size());
+                Vec3d safePos = findSafeTeleportPosition(serverWorld, player, spawnPos.pos);
+                player.requestTeleport(safePos.getX(), safePos.getY(), safePos.getZ());
+                player.setYaw(spawnPos.yaw);
+                player.setPitch(spawnPos.pitch);
+                recordTeleport(player, safePos, serverWorld.getTime());
+            }
         }
 
         // teleport non playing players
@@ -251,6 +282,8 @@ public class GameFunctions {
         PlayerPsychoComponent component = PlayerPsychoComponent.KEY.get(victim);
 
         if (!AllowPlayerDeath.EVENT.invoker().allowDeath(victim, killer, deathReason)) return;
+
+        logTeleportDeathIfRelevant(victim, deathReason);
         if (component.getPsychoTicks() > 0) {
             if (component.getArmour() > 0) {
                 component.setArmour(component.getArmour() - 1);
@@ -319,6 +352,49 @@ public class GameFunctions {
 
     public static boolean shouldDropOnDeath(@NotNull ItemStack stack, PlayerEntity victim) {
         return !stack.isEmpty() && (stack.isOf(WatheItems.REVOLVER) || ShouldDropOnDeath.EVENT.invoker().shouldDrop(stack, victim));
+    }
+
+    private static Vec3d findSafeTeleportPosition(ServerWorld world, ServerPlayerEntity player, Vec3d desiredPos) {
+        BlockPos base = BlockPos.ofFloored(desiredPos);
+
+        for (int yOffset : SAFE_TELEPORT_Y_OFFSETS) {
+            BlockPos candidate = base.up(yOffset);
+            Vec3d candidatePos = new Vec3d(desiredPos.getX(), candidate.getY(), desiredPos.getZ());
+            Box candidateBox = player.getBoundingBox().offset(candidatePos.subtract(player.getPos()));
+            if (world.isSpaceEmpty(player, candidateBox)) {
+                return candidatePos;
+            }
+        }
+
+        return desiredPos;
+    }
+
+    private static void recordTeleport(ServerPlayerEntity player, Vec3d pos, long tick) {
+        LAST_GAME_TELEPORTS.put(player.getUuid(), new TeleportRecord(pos, tick));
+    }
+
+    private static void logTeleportDeathIfRelevant(PlayerEntity victim, Identifier deathReason) {
+        if (!(victim.getWorld() instanceof ServerWorld serverWorld)) {
+            return;
+        }
+
+        TeleportRecord record = LAST_GAME_TELEPORTS.get(victim.getUuid());
+        if (record == null) {
+            return;
+        }
+
+        long delta = serverWorld.getTime() - record.tick();
+        if (delta <= TELEPORT_DEATH_LOG_WINDOW_TICKS) {
+            Wathe.LOGGER.warn(
+                    "Player {} died {} ticks after game teleport. deathReason={}, teleportPos=({}, {}, {})",
+                    victim.getName().getString(),
+                    delta,
+                    deathReason.getPath(),
+                    record.pos().getX(),
+                    record.pos().getY(),
+                    record.pos().getZ()
+            );
+        }
     }
 
     public static boolean isPlayerAliveAndSurvival(PlayerEntity player) {
