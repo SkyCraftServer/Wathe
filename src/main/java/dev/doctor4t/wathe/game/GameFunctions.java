@@ -155,7 +155,8 @@ public class GameFunctions {
             for (ServerPlayerEntity player : players) {
                 player.changeGameMode(net.minecraft.world.GameMode.ADVENTURE);
                 Vec3d pos = player.getPos().add(Vec3d.of(areas.getPlayAreaOffset())).add(0, 1, 0);
-                Vec3d safePos = findSafeTeleportPosition(serverWorld, player, pos);
+                Vec3d centeredPos = pos.add(0.5, 0, 0.5);
+                Vec3d safePos = findSafeTeleportPosition(serverWorld, player, centeredPos);
                 player.requestTeleport(safePos.getX(), safePos.getY(), safePos.getZ());
                 recordTeleport(player, safePos, serverWorld.getTime());
             }
@@ -169,7 +170,8 @@ public class GameFunctions {
 
                 // Use modulo to reuse positions if there are more players than spawn points
                 MapVariablesWorldComponent.PosWithOrientation spawnPos = spawnPositions.get(i % spawnPositions.size());
-                Vec3d safePos = findSafeTeleportPosition(serverWorld, player, spawnPos.pos);
+                Vec3d centeredPos = spawnPos.pos.add(0.5, 0, 0.5);
+                Vec3d safePos = findSafeTeleportPosition(serverWorld, player, centeredPos);
                 player.requestTeleport(safePos.getX(), safePos.getY(), safePos.getZ());
                 player.setYaw(spawnPos.yaw);
                 player.setPitch(spawnPos.pitch);
