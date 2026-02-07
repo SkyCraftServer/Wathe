@@ -97,7 +97,7 @@ public class MapVariablesWorldComponent implements AutoSyncedComponent {
         positions.add(new PosWithOrientation(8.5, 122, -537.5, 179, -25));
         positions.add(new PosWithOrientation(17.5, 123, -538.5, 0, 0));
         positions.add(new PosWithOrientation(12.5, 123, -537.5, 0, -15));
-        positions.add(new PosWithOrientation(22.5, 122, -537.5, 179, -10));
+        positions.add(new PosWithOrientation(23.5, 123, -537.5, 179, -10));
         positions.add(new PosWithOrientation(36.5, 123, -536.5, 0, 0));
         positions.add(new PosWithOrientation(36.5, 123, -534.5, 179, 0));
         positions.add(new PosWithOrientation(44.5, 122, -535.5, 90, 35));
