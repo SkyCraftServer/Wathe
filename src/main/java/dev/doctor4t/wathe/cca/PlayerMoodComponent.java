@@ -162,6 +162,7 @@ public class PlayerMoodComponent implements AutoSyncedComponent, ServerTickingCo
                     case OUTSIDE -> new OutsideTask(GameConstants.OUTSIDE_TASK_DURATION);
                     case EAT -> new EatTask();
                     case DRINK -> new DrinkTask();
+                    case TOGETHER -> new TogetherTask(GameConstants.TOGETHER_TASK_DURATION);
                 };
             }
         }
@@ -236,7 +237,8 @@ public class PlayerMoodComponent implements AutoSyncedComponent, ServerTickingCo
         SLEEP(nbt -> new SleepTask(nbt.getInt("timer"))),
         OUTSIDE(nbt -> new OutsideTask(nbt.getInt("timer"))),
         EAT(nbt -> new EatTask()),
-        DRINK(nbt -> new DrinkTask());
+        DRINK(nbt -> new DrinkTask()),
+        TOGETHER(nbt -> new TogetherTask(nbt.getInt("timer")));
 
         public final @NotNull Function<NbtCompound, TrainTask> setFunction;
 
@@ -365,6 +367,52 @@ public class PlayerMoodComponent implements AutoSyncedComponent, ServerTickingCo
         public NbtCompound toNbt() {
             NbtCompound nbt = new NbtCompound();
             nbt.putInt("type", Task.DRINK.ordinal());
+            return nbt;
+        }
+    }
+
+    public static class TogetherTask implements TrainTask {
+        private int timer;
+
+        public TogetherTask(int time) {
+            this.timer = time;
+        }
+
+        @Override
+        public void tick(@NotNull PlayerEntity player) {
+            if (this.timer <= 0) return;
+            double range = GameConstants.TOGETHER_TASK_RANGE;
+            double rangeSq = range * range;
+            for (PlayerEntity other : player.getWorld().getPlayers()) {
+                if (other == player) continue;
+                if (!GameFunctions.isPlayerAliveAndSurvival(other)) continue;
+                if (other.squaredDistanceTo(player) <= rangeSq) {
+                    this.timer--;
+                    break;
+                }
+            }
+        }
+
+        @Override
+        public boolean isFulfilled(@NotNull PlayerEntity player) {
+            return this.timer <= 0;
+        }
+
+        @Override
+        public String getName() {
+            return "together";
+        }
+
+        @Override
+        public Task getType() {
+            return Task.TOGETHER;
+        }
+
+        @Override
+        public NbtCompound toNbt() {
+            NbtCompound nbt = new NbtCompound();
+            nbt.putInt("type", Task.TOGETHER.ordinal());
+            nbt.putInt("timer", this.timer);
             return nbt;
         }
     }
