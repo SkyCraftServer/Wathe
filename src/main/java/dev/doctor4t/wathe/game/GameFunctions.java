@@ -54,7 +54,6 @@ import java.util.*;
 public class GameFunctions {
 
     private static final int TELEPORT_DEATH_LOG_WINDOW_TICKS = 100;
-    private static final int[] SAFE_TELEPORT_Y_OFFSETS = new int[]{0, 1, 2, -1};
     private static final Map<UUID, TeleportRecord> LAST_GAME_TELEPORTS = new HashMap<>();
 
     private record TeleportRecord(Vec3d pos, long tick) {}
@@ -150,14 +149,10 @@ public class GameFunctions {
         // teleport players to play area - randomly assign spawn positions
         List<MapVariablesWorldComponent.PosWithOrientation> spawnPositions = new ArrayList<>(areas.getGameStartSpawnPositions());
 
-        // If spawn positions list is empty or insufficient, fall back to offset method
         if (spawnPositions.isEmpty()) {
+            Wathe.LOGGER.warn("Game start spawn positions list is empty; players will not be teleported.");
             for (ServerPlayerEntity player : players) {
                 player.changeGameMode(net.minecraft.world.GameMode.ADVENTURE);
-                Vec3d pos = player.getPos().add(Vec3d.of(areas.getPlayAreaOffset())).add(0, 1, 0);
-                Vec3d safePos = findSafeTeleportPosition(serverWorld, player, pos);
-                player.requestTeleport(safePos.getX(), safePos.getY(), safePos.getZ());
-                recordTeleport(player, safePos, serverWorld.getTime());
             }
         } else {
             // Shuffle spawn positions for random assignment
@@ -169,11 +164,8 @@ public class GameFunctions {
 
                 // Use modulo to reuse positions if there are more players than spawn points
                 MapVariablesWorldComponent.PosWithOrientation spawnPos = spawnPositions.get(i % spawnPositions.size());
-                Vec3d safePos = findSafeTeleportPosition(serverWorld, player, spawnPos.pos);
-                player.requestTeleport(safePos.getX(), safePos.getY(), safePos.getZ());
-                player.setYaw(spawnPos.yaw);
-                player.setPitch(spawnPos.pitch);
-                recordTeleport(player, safePos, serverWorld.getTime());
+                player.teleport(serverWorld, spawnPos.pos.getX(), spawnPos.pos.getY(), spawnPos.pos.getZ(), spawnPos.yaw, spawnPos.pitch);
+                recordTeleport(player, spawnPos.pos, serverWorld.getTime());
             }
         }
 
@@ -352,21 +344,6 @@ public class GameFunctions {
 
     public static boolean shouldDropOnDeath(@NotNull ItemStack stack, PlayerEntity victim) {
         return !stack.isEmpty() && (stack.isOf(WatheItems.REVOLVER) || ShouldDropOnDeath.EVENT.invoker().shouldDrop(stack, victim));
-    }
-
-    private static Vec3d findSafeTeleportPosition(ServerWorld world, ServerPlayerEntity player, Vec3d desiredPos) {
-        BlockPos base = BlockPos.ofFloored(desiredPos);
-
-        for (int yOffset : SAFE_TELEPORT_Y_OFFSETS) {
-            BlockPos candidate = base.up(yOffset);
-            Vec3d candidatePos = new Vec3d(desiredPos.getX(), candidate.getY(), desiredPos.getZ());
-            Box candidateBox = player.getBoundingBox().offset(candidatePos.subtract(player.getPos()));
-            if (world.isSpaceEmpty(player, candidateBox)) {
-                return candidatePos;
-            }
-        }
-
-        return desiredPos;
     }
 
     private static void recordTeleport(ServerPlayerEntity player, Vec3d pos, long tick) {
