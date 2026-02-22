@@ -76,6 +76,15 @@ public class MapVariablesWorldComponent implements AutoSyncedComponent {
         this.playAreaOffset = playAreaOffset;
         this.sync();
     }
+
+    public Box getPlayArea() {
+        return playArea;
+    }
+
+    public void setPlayArea(Box playArea) {
+        this.playArea = playArea;
+        this.sync();
+    }
     
     public List<PosWithOrientation> getGameStartSpawnPositions() {
         return gameStartSpawnPositions;
@@ -90,7 +99,7 @@ public class MapVariablesWorldComponent implements AutoSyncedComponent {
         List<PosWithOrientation> positions = new ArrayList<>();
         
         // Default game start spawn positions (user-provided list)
-        positions.add(new PosWithOrientation(-38.5, 122, -536.5, 90, 0));
+        positions.add(new PosWithOrientation(-36.5, 122, -535.5, 90, 0));
         positions.add(new PosWithOrientation(-10.5, 122, -534.5, 178, 20));
         positions.add(new PosWithOrientation(-6.5, 123, -535.5, 178, 0));
         positions.add(new PosWithOrientation(-11.5, 122, -536.5, -45, 40));
@@ -134,18 +143,10 @@ public class MapVariablesWorldComponent implements AutoSyncedComponent {
         return positions;
     }
 
-    public Box getPlayArea() {
-        return playArea;
-    }
-
-    public void setPlayArea(Box playArea) {
-        this.playArea = playArea;
-        this.sync();
-    }
-
     public Box getResetTemplateArea() {
         return resetTemplateArea;
     }
+
 
     public void setResetTemplateArea(Box resetTemplateArea) {
         this.resetTemplateArea = resetTemplateArea;
