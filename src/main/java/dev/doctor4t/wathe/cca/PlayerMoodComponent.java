@@ -21,6 +21,7 @@ import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.registry.entry.RegistryEntryList;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.text.Text;
 import net.minecraft.util.Util;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -37,6 +38,7 @@ import static dev.doctor4t.wathe.Wathe.isSkyVisibleAdjacent;
 
 public class PlayerMoodComponent implements AutoSyncedComponent, ServerTickingComponent, ClientTickingComponent {
     public static final ComponentKey<PlayerMoodComponent> KEY = ComponentRegistry.getOrCreate(Wathe.id("mood"), PlayerMoodComponent.class);
+    private static final String CIGAR_ID = "watheextraitems:cigar";
     private final PlayerEntity player;
     public final Map<Task, TrainTask> tasks = new HashMap<>();
     public final Map<Task, Integer> timesGotten = new HashMap<>();
@@ -44,6 +46,9 @@ public class PlayerMoodComponent implements AutoSyncedComponent, ServerTickingCo
     private float mood = 1f;
     private final HashMap<UUID, ItemStack> psychosisItems = new HashMap<>();
     private static List<Item> cachedPsychosisItems = null;
+    private Task lastTaskType = null;
+    private int lastCigarDamage = -1;
+    private int cigarDamageReductionCount = 0;
 
     public PlayerMoodComponent(PlayerEntity player) {
         this.player = player;
@@ -58,6 +63,9 @@ public class PlayerMoodComponent implements AutoSyncedComponent, ServerTickingCo
         this.timesGotten.clear();
         this.nextTaskTimer = GameConstants.TIME_TO_FIRST_TASK;
         this.psychosisItems.clear();
+        this.lastTaskType = null;
+        this.lastCigarDamage = -1;
+        this.cigarDamageReductionCount = 0;
         this.setMood(1f);
         this.sync();
     }
@@ -114,6 +122,10 @@ public class PlayerMoodComponent implements AutoSyncedComponent, ServerTickingCo
     public void serverTick() {
         GameWorldComponent gameWorldComponent = GameWorldComponent.KEY.get(this.player.getWorld());
         if (!gameWorldComponent.isRunning() || !GameFunctions.isPlayerAliveAndSurvival(this.player)) return;
+        
+        // 检测雪茄是否被抽完
+        this.checkCigarCompletion();
+        
         if (!this.tasks.isEmpty()) this.setMood(this.mood - this.tasks.size() * GameConstants.MOOD_DRAIN);
         boolean shouldSync = false;
         this.nextTaskTimer--;
@@ -132,7 +144,9 @@ public class PlayerMoodComponent implements AutoSyncedComponent, ServerTickingCo
         for (TrainTask task : this.tasks.values()) {
             task.tick(this.player);
             if (task.isFulfilled(this.player)) {
-                removals.add(task.getType());
+                Task taskType = task.getType();
+                removals.add(taskType);
+                this.lastTaskType = taskType;  // 记录完成的任务类型，用于防止连续相同任务
                 this.setMood(this.mood + GameConstants.MOOD_GAIN);
                 if (this.player instanceof ServerPlayerEntity tempPlayer)
                     ServerPlayNetworking.send(tempPlayer, new TaskCompletePayload());
@@ -149,20 +163,43 @@ public class PlayerMoodComponent implements AutoSyncedComponent, ServerTickingCo
         float total = 0f;
         for (Task task : Task.values()) {
             if (this.tasks.containsKey(task)) continue;
-            float weight = 1f / this.timesGotten.getOrDefault(task, 1);
-            map.put(task, weight);
-            total += weight;
+            // 防止连续相同任务
+            if (task == this.lastTaskType) continue;
+            
+            // 使用配置的权重和任务出现次数的倒数相乘
+            Float configWeight = GameConstants.TASK_WEIGHTS.getOrDefault(task.getName(), 1.0f);
+            float timesWeight = 1f / this.timesGotten.getOrDefault(task, 1);
+            float combinedWeight = configWeight * timesWeight;
+            map.put(task, combinedWeight);
+            total += combinedWeight;
         }
+        
+        // 如果所有任务都被排除（防止了连续任务），允许选择上一个任务
+        if (total <= 0) {
+            for (Task task : Task.values()) {
+                if (this.tasks.containsKey(task)) continue;
+                Float configWeight = GameConstants.TASK_WEIGHTS.getOrDefault(task.getName(), 1.0f);
+                float timesWeight = 1f / this.timesGotten.getOrDefault(task, 1);
+                float combinedWeight = configWeight * timesWeight;
+                map.put(task, combinedWeight);
+                total += combinedWeight;
+            }
+        }
+        
         float random = this.player.getRandom().nextFloat() * total;
         for (Map.Entry<Task, Float> entry : map.entrySet()) {
             random -= entry.getValue();
             if (random <= 0) {
-                return switch (entry.getKey()) {
+                Task selectedTask = entry.getKey();
+                this.lastTaskType = selectedTask;
+                return switch (selectedTask) {
                     case SLEEP -> new SleepTask(GameConstants.SLEEP_TASK_DURATION);
                     case OUTSIDE -> new OutsideTask(GameConstants.OUTSIDE_TASK_DURATION);
                     case EAT -> new EatTask();
                     case DRINK -> new DrinkTask();
                     case TOGETHER -> new TogetherTask(GameConstants.TOGETHER_TASK_DURATION);
+                    case ALONE -> new AloneTask(GameConstants.ALONE_TASK_DURATION);
+                    case SMOKE -> new SmokeTask();
                 };
             }
         }
@@ -195,6 +232,65 @@ public class PlayerMoodComponent implements AutoSyncedComponent, ServerTickingCo
 
     public void drinkCocktail() {
         if (this.tasks.get(Task.DRINK) instanceof DrinkTask drinkTask) drinkTask.fulfilled = true;
+    }
+
+    public void smokeCigar() {
+        if (this.tasks.get(Task.SMOKE) instanceof SmokeTask smokeTask) smokeTask.fulfilled = true;
+    }
+
+    private boolean isCigar(ItemStack stack) {
+        if (stack.isEmpty()) return false;
+        return stack.getRegistryEntry().getIdAsString().equals(CIGAR_ID);
+    }
+
+    private void checkCigarCompletion() {
+        // 检查背包中的所有物品，找到雪茄
+        int currentCigarDamage = -1;
+        
+        // 检查主手
+        ItemStack mainHandStack = this.player.getMainHandStack();
+        if (this.isCigar(mainHandStack)) {
+            currentCigarDamage = mainHandStack.getDamage();
+        }
+        
+        // 如果主手没有，检查副手
+        if (currentCigarDamage == -1) {
+            ItemStack offHandStack = this.player.getOffHandStack();
+            if (this.isCigar(offHandStack)) {
+                currentCigarDamage = offHandStack.getDamage();
+            }
+        }
+        
+        // 如果还没找到，检查背包
+        if (currentCigarDamage == -1) {
+            for (ItemStack stack : this.player.getInventory().main) {
+                if (this.isCigar(stack)) {
+                    currentCigarDamage = stack.getDamage();
+                    break;
+                }
+            }
+        }
+        
+        // 如果当前有雪茄且上一刻也有雪茄，检查耐久值是否减少
+        if (currentCigarDamage != -1 && this.lastCigarDamage != -1) {
+            if (currentCigarDamage > this.lastCigarDamage) {
+                // 耐久值减少了（数值更大表示损伤更多）
+                this.cigarDamageReductionCount++;
+                
+                // 调试信息：在actionbar显示
+                if (this.player instanceof ServerPlayerEntity serverPlayer) {
+                    serverPlayer.sendMessage(Text.literal("§e任务完成进度: " + this.cigarDamageReductionCount + "/2"), true);
+                }
+                
+                if (this.cigarDamageReductionCount >= 2) {
+                    this.smokeCigar();
+                    this.cigarDamageReductionCount = 0;
+                }
+            }
+        }
+        
+        // 更新当前耐久值
+        this.lastCigarDamage = currentCigarDamage;
     }
 
     public boolean isLowerThanMid() {
@@ -238,12 +334,18 @@ public class PlayerMoodComponent implements AutoSyncedComponent, ServerTickingCo
         OUTSIDE(nbt -> new OutsideTask(nbt.getInt("timer"))),
         EAT(nbt -> new EatTask()),
         DRINK(nbt -> new DrinkTask()),
-        TOGETHER(nbt -> new TogetherTask(nbt.getInt("timer")));
+        TOGETHER(nbt -> new TogetherTask(nbt.getInt("timer"))),
+        ALONE(nbt -> new AloneTask(nbt.getInt("timer"))),
+        SMOKE(nbt -> new SmokeTask());
 
         public final @NotNull Function<NbtCompound, TrainTask> setFunction;
 
         Task(@NotNull Function<NbtCompound, TrainTask> function) {
             this.setFunction = function;
+        }
+        
+        public String getName() {
+            return this.name().toLowerCase();
         }
     }
 
@@ -413,6 +515,80 @@ public class PlayerMoodComponent implements AutoSyncedComponent, ServerTickingCo
             NbtCompound nbt = new NbtCompound();
             nbt.putInt("type", Task.TOGETHER.ordinal());
             nbt.putInt("timer", this.timer);
+            return nbt;
+        }
+    }
+
+    public static class AloneTask implements TrainTask {
+        private int timer;
+
+        public AloneTask(int time) {
+            this.timer = time;
+        }
+
+        @Override
+        public void tick(@NotNull PlayerEntity player) {
+            if (this.timer <= 0) return;
+            double range = GameConstants.ALONE_TASK_RANGE;
+            double rangeSq = range * range;
+            boolean isAlone = true;
+            for (PlayerEntity other : player.getWorld().getPlayers()) {
+                if (other == player) continue;
+                if (!GameFunctions.isPlayerAliveAndSurvival(other)) continue;
+                if (other.squaredDistanceTo(player) <= rangeSq) {
+                    isAlone = false;
+                    break;
+                }
+            }
+            if (isAlone && this.timer > 0) this.timer--;
+        }
+
+        @Override
+        public boolean isFulfilled(@NotNull PlayerEntity player) {
+            return this.timer <= 0;
+        }
+
+        @Override
+        public String getName() {
+            return "alone";
+        }
+
+        @Override
+        public Task getType() {
+            return Task.ALONE;
+        }
+
+        @Override
+        public NbtCompound toNbt() {
+            NbtCompound nbt = new NbtCompound();
+            nbt.putInt("type", Task.ALONE.ordinal());
+            nbt.putInt("timer", this.timer);
+            return nbt;
+        }
+    }
+
+    public static class SmokeTask implements TrainTask {
+        public boolean fulfilled = false;
+
+        @Override
+        public boolean isFulfilled(@NotNull PlayerEntity player) {
+            return this.fulfilled;
+        }
+
+        @Override
+        public String getName() {
+            return "smoke";
+        }
+
+        @Override
+        public Task getType() {
+            return Task.SMOKE;
+        }
+
+        @Override
+        public NbtCompound toNbt() {
+            NbtCompound nbt = new NbtCompound();
+            nbt.putInt("type", Task.SMOKE.ordinal());
             return nbt;
         }
     }

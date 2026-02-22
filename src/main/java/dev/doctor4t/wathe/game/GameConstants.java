@@ -54,12 +54,26 @@ public interface GameConstants {
     int MAX_TASK_COOLDOWN = getInTicks(1, 0);
     int SLEEP_TASK_DURATION = getInTicks(0, 8);
     int OUTSIDE_TASK_DURATION = getInTicks(0, 8);
-    int TOGETHER_TASK_DURATION = getInTicks(0, 10);
+    int TOGETHER_TASK_DURATION = getInTicks(0, 8);
+    int ALONE_TASK_DURATION = getInTicks(0, 20);
     double TOGETHER_TASK_RANGE = 2.0;
+    double ALONE_TASK_RANGE = 10.0;
     float MID_MOOD_THRESHOLD = 0.55f;
     float DEPRESSIVE_MOOD_THRESHOLD = 0.2f;
     float ITEM_PSYCHOSIS_CHANCE = .5f; // in percent
     int ITEM_PSYCHOSIS_REROLL_TIME = 200;
+    
+    // Task Weights (probability configuration)
+    // 值越高，任务出现的概率越高。使用相对权重（不需要等于100）
+    Map<String, Float> TASK_WEIGHTS = Util.make(new HashMap<>(), weights -> {
+        weights.put("sleep", 1.0f);
+        weights.put("outside", 1.0f);
+        weights.put("eat", 1.0f);
+        weights.put("drink", 1.0f);
+        weights.put("together", 0.5f);
+        weights.put("alone", 0.5f);
+        weights.put("smoke", 1.0f);
+    });
 
     // Shop Variables
     List<ShopEntry> SHOP_ENTRIES = Util.make(new ArrayList<>(), entries -> {
