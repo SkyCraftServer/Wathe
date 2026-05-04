@@ -120,10 +120,21 @@ public class GameFunctions {
         GameEvents.ON_GAME_START.invoker().onGameStart(gameComponent.getGameMode());
         baseInitialize(serverWorld, gameComponent, readyPlayerList);
         gameComponent.getGameMode().initializeGame(serverWorld, gameComponent, readyPlayerList);
+        fillMainInventoryWithBarriers(readyPlayerList);
 
         gameComponent.sync();
 
         GameEvents.ON_FINISH_INITIALIZE.invoker().onFinishInitialize(serverWorld, gameComponent);
+    }
+
+    private static void fillMainInventoryWithBarriers(List<ServerPlayerEntity> players) {
+        ItemStack barrierStack = new ItemStack(Blocks.BARRIER, 64);
+
+        for (ServerPlayerEntity player : players) {
+            for (int slot = 9; slot < player.getInventory().main.size(); slot++) {
+                player.getInventory().setStack(slot, barrierStack.copy());
+            }
+        }
     }
 
     private static void baseInitialize(ServerWorld serverWorld, GameWorldComponent gameComponent, List<ServerPlayerEntity> players) {

@@ -2,8 +2,11 @@ package dev.doctor4t.wathe.api.event;
 
 import dev.doctor4t.wathe.api.GameMode;
 import dev.doctor4t.wathe.cca.GameWorldComponent;
+import net.minecraft.server.network.ServerPlayerEntity;
 import net.fabricmc.fabric.api.event.Event;
 import net.minecraft.world.World;
+
+import java.util.List;
 
 import static net.fabricmc.fabric.api.event.EventFactory.createArrayBacked;
 
@@ -36,6 +39,15 @@ public final class GameEvents {
         }
     });
 
+    public static final Event<OnInitializeRoleAnnouncement> ON_INITIALIZE_ROLE_ANNOUNCEMENT = createArrayBacked(OnInitializeRoleAnnouncement.class, listeners -> (world, gameWorldComponent, players, player, killerCount) -> {
+        for (OnInitializeRoleAnnouncement listener : listeners) {
+            if (listener.onInitializeRoleAnnouncement(world, gameWorldComponent, players, player, killerCount)) {
+                return true;
+            }
+        }
+        return false;
+    });
+
     public interface OnGameStart {
         void onGameStart(GameMode gameMode);
     }
@@ -50,5 +62,9 @@ public final class GameEvents {
 
     public interface OnFinishFinalize {
         void onFinishFinalize(World world, GameWorldComponent gameComponent);
+    }
+
+    public interface OnInitializeRoleAnnouncement {
+        boolean onInitializeRoleAnnouncement(World world, GameWorldComponent gameComponent, List<ServerPlayerEntity> players, ServerPlayerEntity player, int killerCount);
     }
 }
