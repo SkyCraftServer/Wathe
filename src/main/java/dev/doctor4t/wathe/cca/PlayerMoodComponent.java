@@ -2,6 +2,7 @@ package dev.doctor4t.wathe.cca;
 
 import dev.doctor4t.wathe.Wathe;
 import dev.doctor4t.wathe.api.Role;
+import dev.doctor4t.wathe.api.SmokingTracker;
 import dev.doctor4t.wathe.client.WatheClient;
 import dev.doctor4t.wathe.game.GameConstants;
 import dev.doctor4t.wathe.game.GameFunctions;
@@ -21,7 +22,6 @@ import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.registry.entry.RegistryEntryList;
 import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.text.Text;
 import net.minecraft.util.Util;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -38,7 +38,6 @@ import static dev.doctor4t.wathe.Wathe.isSkyVisibleAdjacent;
 
 public class PlayerMoodComponent implements AutoSyncedComponent, ServerTickingComponent, ClientTickingComponent {
     public static final ComponentKey<PlayerMoodComponent> KEY = ComponentRegistry.getOrCreate(Wathe.id("mood"), PlayerMoodComponent.class);
-    private static final String CIGAR_ID = "watheextraitems:cigar";
     private final PlayerEntity player;
     public final Map<Task, TrainTask> tasks = new HashMap<>();
     public final Map<Task, Integer> timesGotten = new HashMap<>();
@@ -47,8 +46,6 @@ public class PlayerMoodComponent implements AutoSyncedComponent, ServerTickingCo
     private final HashMap<UUID, ItemStack> psychosisItems = new HashMap<>();
     private static List<Item> cachedPsychosisItems = null;
     private Task lastTaskType = null;
-    private int lastCigarDamage = -1;
-    private int cigarDamageReductionCount = 0;
 
     public PlayerMoodComponent(PlayerEntity player) {
         this.player = player;
@@ -64,8 +61,6 @@ public class PlayerMoodComponent implements AutoSyncedComponent, ServerTickingCo
         this.nextTaskTimer = GameConstants.TIME_TO_FIRST_TASK;
         this.psychosisItems.clear();
         this.lastTaskType = null;
-        this.lastCigarDamage = -1;
-        this.cigarDamageReductionCount = 0;
         this.setMood(1f);
         this.sync();
     }
@@ -123,8 +118,7 @@ public class PlayerMoodComponent implements AutoSyncedComponent, ServerTickingCo
         GameWorldComponent gameWorldComponent = GameWorldComponent.KEY.get(this.player.getWorld());
         if (!gameWorldComponent.isRunning() || !GameFunctions.isPlayerAliveAndSurvival(this.player)) return;
         
-        // 检测雪茄是否被抽完
-        this.checkCigarCompletion();
+        this.checkSmokeProgress();
         
         if (!this.tasks.isEmpty()) this.setMood(this.mood - this.tasks.size() * GameConstants.MOOD_DRAIN);
         boolean shouldSync = false;
@@ -199,7 +193,10 @@ public class PlayerMoodComponent implements AutoSyncedComponent, ServerTickingCo
                     case DRINK -> new DrinkTask();
                     case TOGETHER -> new TogetherTask(GameConstants.TOGETHER_TASK_DURATION);
                     case ALONE -> new AloneTask(GameConstants.ALONE_TASK_DURATION);
-                    case SMOKE -> new SmokeTask();
+                    case SMOKE -> {
+                        SmokingTracker.resetSmokeCount(player);
+                        yield new SmokeTask();
+                    }
                 };
             }
         }
@@ -238,59 +235,15 @@ public class PlayerMoodComponent implements AutoSyncedComponent, ServerTickingCo
         if (this.tasks.get(Task.SMOKE) instanceof SmokeTask smokeTask) smokeTask.fulfilled = true;
     }
 
-    private boolean isCigar(ItemStack stack) {
-        if (stack.isEmpty()) return false;
-        return stack.getRegistryEntry().getIdAsString().equals(CIGAR_ID);
-    }
+    private void checkSmokeProgress() {
+        if (!this.tasks.containsKey(Task.SMOKE)) return;
 
-    private void checkCigarCompletion() {
-        // 检查背包中的所有物品，找到雪茄
-        int currentCigarDamage = -1;
-        
-        // 检查主手
-        ItemStack mainHandStack = this.player.getMainHandStack();
-        if (this.isCigar(mainHandStack)) {
-            currentCigarDamage = mainHandStack.getDamage();
+        int count = SmokingTracker.getSmokeCount(this.player);
+
+        if (count >= 2) {
+            this.smokeCigar();
+            SmokingTracker.resetSmokeCount(this.player);
         }
-        
-        // 如果主手没有，检查副手
-        if (currentCigarDamage == -1) {
-            ItemStack offHandStack = this.player.getOffHandStack();
-            if (this.isCigar(offHandStack)) {
-                currentCigarDamage = offHandStack.getDamage();
-            }
-        }
-        
-        // 如果还没找到，检查背包
-        if (currentCigarDamage == -1) {
-            for (ItemStack stack : this.player.getInventory().main) {
-                if (this.isCigar(stack)) {
-                    currentCigarDamage = stack.getDamage();
-                    break;
-                }
-            }
-        }
-        
-        // 如果当前有雪茄且上一刻也有雪茄，检查耐久值是否减少
-        if (currentCigarDamage != -1 && this.lastCigarDamage != -1) {
-            if (currentCigarDamage > this.lastCigarDamage) {
-                // 耐久值减少了（数值更大表示损伤更多）
-                this.cigarDamageReductionCount++;
-                
-                // 调试信息：在actionbar显示
-                if (this.player instanceof ServerPlayerEntity serverPlayer) {
-                    serverPlayer.sendMessage(Text.literal("§e任务完成进度: " + this.cigarDamageReductionCount + "/2"), true);
-                }
-                
-                if (this.cigarDamageReductionCount >= 2) {
-                    this.smokeCigar();
-                    this.cigarDamageReductionCount = 0;
-                }
-            }
-        }
-        
-        // 更新当前耐久值
-        this.lastCigarDamage = currentCigarDamage;
     }
 
     public boolean isLowerThanMid() {
