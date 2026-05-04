@@ -71,7 +71,7 @@ public interface GameConstants {
         weights.put("eat", 1.0f);
         weights.put("drink", 1.0f);
         weights.put("together", 0.5f);
-        weights.put("alone", 0.5f);
+        weights.put("alone", 1.5f);
         weights.put("smoke", 1.0f);
     });
 
